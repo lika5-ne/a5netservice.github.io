@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>A5 VPN - Générateur MikroTik</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link href="assets/css/styles.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100 text-gray-800 font-sans">
+  <div class="max-w-3xl mx-auto px-4 py-10">
+    <div class="bg-white shadow-xl rounded-xl p-8">
+      <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-blue-600">🎯 Générateur de Script VPN MikroTik</h1>
+        <a href="index.html" class="text-sm text-blue-600 hover:underline">← Retour au site</a>
+      </div>
+
+      <label class="font-semibold">Type de VPN :</label>
+      <select id="vpnType" class="border rounded p-2 mb-4 w-full">
+        <option value="pptp">PPTP</option>
+        <option value="l2tp">L2TP/IPSec</option>
+        <option value="wireguard">WireGuard</option>
+      </select>
+
+      <label class="font-semibold">Nom d'utilisateur :</label>
+      <input type="text" id="username" placeholder="ex : vpnuser" class="border rounded p-2 mb-4" />
+
+      <label class="font-semibold">Mot de passe / Clé privée :</label>
+      <input type="text" id="password" placeholder="ex : vpnpassword ou clé privée WG" class="border rounded p-2 mb-4" />
+
+      <label class="font-semibold">Adresse IP locale :</label>
+      <input type="text" id="localIP" placeholder="ex : 192.168.89.1" class="border rounded p-2 mb-4" />
+
+      <label class="font-semibold">Plage IP clients VPN :</label>
+      <input type="text" id="remoteIP" placeholder="ex : 192.168.89.2-192.168.89.20" class="border rounded p-2 mb-4" />
+
+      <button onclick="generateScript()" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">Générer le script</button>
+
+      <h3 class="text-lg font-semibold mt-6 mb-2">Script MikroTik :</h3>
+      <textarea id="output" readonly class="w-full border p-3 rounded bg-gray-100" rows="10"></textarea>
+    </div>
+  </div>
+
+  <script>
+    function generateScript() {
+      const vpnType = document.getElementById('vpnType').value;
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+      const localIP = document.getElementById('localIP').value;
+      const remoteIP = document.getElementById('remoteIP').value;
+      let script = '';
+
+      if (vpnType === 'pptp') {
+        script = 
+`/ppp secret add name=${username} password=${password} service=pptp profile=default-encryption
+/ip pool add name=pptp-pool ranges=${remoteIP}
+/ppp profile add name=pptp-profile local-address=${localIP} remote-address=pptp-pool use-encryption=yes
+/interface pptp-server server set enabled=yes default-profile=pptp-profile
+/ip firewall filter add chain=input protocol=tcp dst-port=1723 action=accept comment="Allow PPTP VPN"`;
+      } else if (vpnType === 'l2tp') {
+        script = 
+`/ppp secret add name=${username} password=${password} service=l2tp profile=default-encryption
+/ip pool add name=l2tp-pool ranges=${remoteIP}
+/ppp profile add name=l2tp-profile local-address=${localIP} remote-address=l2tp-pool use-encryption=yes
+/interface l2tp-server server set enabled=yes default-profile=l2tp-profile use-ipsec=yes ipsec-secret=${password}
+/ip firewall filter add chain=input protocol=udp dst-port=500,1701,4500 action=accept comment="Allow L2TP/IPSec VPN"`;
+      } else if (vpnType === 'wireguard') {
+        script = 
+`/interface wireguard add name=wg0 listen-port=13231 private-key="${password}"
+/ip address add address=${localIP}/24 interface=wg0
+/ip pool add name=wg-pool ranges=${remoteIP}
+/interface wireguard peers add interface=wg0 public-key="<clé publique client>" allowed-address=${remoteIP}
+/ip firewall filter add chain=input action=accept protocol=udp dst-port=13231 comment="Allow WireGuard"`;
+      }
+
+      document.getElementById('output').value = script;
+    }
+  </script>
+</body>
+</html>

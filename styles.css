@@ -1,0 +1,8 @@
+/* Effets supplémentaires */
+.click-effect {
+  transition: all 0.2s ease;
+}
+.click-effect:active {
+  transform: scale(0.98);
+  opacity: 0.9;
+}
